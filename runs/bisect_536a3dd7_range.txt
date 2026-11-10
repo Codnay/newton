@@ -1,0 +1,4 @@
+28d8d473c 0.375 Deprecate rod start frames and clean up VBD options (#4978)
+2e20d82d7 0.0 Add configurable inertia validation controls (#4971)
+3ba2f21c1 0.001953125 Reject non-finite contact materials at finalization (#4905)
+536a3dd77 0.3828125 Fix downward triangle-box ground-contact normals (#4974)

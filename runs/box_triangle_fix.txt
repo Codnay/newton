@@ -1,0 +1,4 @@
+newton 1.9.0.dev0, warp 1.19.0; true penetration 0.5 mm
+tilt -0.02 rad about (0.0, 1.0, 0.0): 8 contacts, deepest 0.500 mm, normal [-0.0, -0.0, 1.0]
+tilt -0.02 rad about (1.0, 0.0, 0.0): 8 contacts, deepest 0.500 mm, normal [-0.0, 0.0, 1.0]
+RESULT ok (deepest 0.500 mm)

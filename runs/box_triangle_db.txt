@@ -1,0 +1,4 @@
+newton 1.8.0rc1, warp 1.19.0; true penetration 0.5 mm
+tilt -0.02 rad about (0.0, 1.0, 0.0): 9 contacts, deepest 65.198 mm, normal [-1.0, -0.0, -0.0]
+tilt -0.02 rad about (1.0, 0.0, 0.0): 9 contacts, deepest 65.000 mm, normal [-1.0, -0.0, -0.0]
+RESULT phantom deep contact (deepest 65.198 mm)

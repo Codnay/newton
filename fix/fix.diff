@@ -1,0 +1,111 @@
+diff --git a/changelog/+triangle-box-edge-exit-7d41c9a2.fixed.md b/changelog/+triangle-box-edge-exit-7d41c9a2.fixed.md
+new file mode 100644
+index 00000000..7c5f488b
+--- /dev/null
++++ b/changelog/+triangle-box-edge-exit-7d41c9a2.fixed.md
+@@ -0,0 +1 @@
++Fix box contacts against one-sided mesh triangles reporting a deep sideways contact when a triangle dips slightly into a box face; a box-separating direction that leans behind the triangle is now projected onto the triangle's plane instead of being discarded.
+diff --git a/newton/_src/geometry/penetration.py b/newton/_src/geometry/penetration.py
+index caf1b9d7..2354f66b 100644
+--- a/newton/_src/geometry/penetration.py
++++ b/newton/_src/geometry/penetration.py
+@@ -72,12 +72,15 @@ def _box_triangle_depth(
+     The triangle may degenerate to a segment or a point. The returned unit
+     direction moves the triangle out of the box by the returned depth.
+     For a one-sided mesh triangle, directions must not move the box behind
+-    the triangle's front side. Partner-point certificates remain
++    the triangle's front side. A candidate that leans behind it is replaced
++    by its projection onto the triangle's plane, at the travel that clears
++    the same axis, so the box may still slide off an edge of the triangle.
++    A separating axis is kept on either side. Partner-point certificates remain
+     two-sided so their depths still bound the full Minkowski body from below.
+     """
+     front = wp.vec3(0.0)
+     if one_sided:
+-        front = wp.cross(second - first, third - first)
++        front = wp.normalize(wp.cross(second - first, third - first))
+     depth = float(1.0e30)
+     direction = wp.vec3(1.0, 0.0, 0.0)
+     for index in range(13):
+@@ -92,10 +95,21 @@ def _box_triangle_depth(
+             positive = radius - wp.min(d0, wp.min(d1, d2))
+             negative = radius + wp.max(d0, wp.max(d1, d2))
+             side = wp.dot(axis, front)
+-            if positive < depth and side <= 0.0:
++            # In-plane part of the axis; moving along it by ``depth / lateral``
++            # clears the axis as moving along the axis by ``depth`` does.
++            lateral = wp.sqrt(wp.max(1.0 - side * side, 0.0))
++            if side > 0.0 and positive > 0.0:
++                if lateral > 1.0e-6 and positive < depth * lateral:
++                    depth = positive / lateral
++                    direction = (axis - side * front) / lateral
++            elif positive < depth:
+                 depth = positive
+                 direction = axis
+-            if negative < depth and side >= 0.0:
++            if side < 0.0 and negative > 0.0:
++                if lateral > 1.0e-6 and negative < depth * lateral:
++                    depth = negative / lateral
++                    direction = (side * front - axis) / lateral
++            elif negative < depth:
+                 depth = negative
+                 direction = -axis
+     return depth, direction
+@@ -254,8 +268,8 @@ def create_solve_box_penetration(support: Any):
+     """Find minimum depth for a box against a box, triangle, or convex mesh.
+ 
+     Box and triangle pairs use the closed-form separating-axis test. Mesh
+-    triangles restrict box-separation directions to their front side, consistent
+-    with midphase back-face culling. Convex meshes first try cheap certificates:
++    triangles restrict box-separation directions to their front side or their own
++    plane, consistent with midphase back-face culling. Convex meshes first try cheap certificates:
+     a box plus a triangle of genuine partner points is an inner Minkowski body,
+     so its depth bounds the minimum from below, and a support plane bounds it from above; matching
+     bounds certify the minimum with a few support queries. Verified hulls
+diff --git a/newton/tests/test_convex_refinement_regressions.py b/newton/tests/test_convex_refinement_regressions.py
+index 680118c4..7ec4aa36 100644
+--- a/newton/tests/test_convex_refinement_regressions.py
++++ b/newton/tests/test_convex_refinement_regressions.py
+@@ -331,6 +331,34 @@ def test_refinement_triangle_box_seam(test, device):
+             np.testing.assert_allclose(np.max(np.abs(local_box) - half, axis=1), 0.0, atol=1.0e-5)
+ 
+ 
++def test_refinement_triangle_box_tilted_rest(test, device):
++    """Keep a slightly tilted mesh resting on a wide box at its true depth.
++
++    A side triangle of the mesh dips below the box's top face. Lifting it out is the
++    shallow way to separate the pair, but that direction leans a little toward the
++    triangle's front side, and the next front-side exit crosses the whole box.
++    """
++    half = np.array([0.075, 0.125, 0.04])
++    side, depth, tilt = 0.01, 0.0005, -0.02
++    cube = newton.Mesh.create_box(
++        side, side, side, duplicate_vertices=False, compute_normals=False, compute_uvs=False, compute_inertia=False
++    )
++    vertices = np.asarray(cube.vertices, dtype=np.float32)
++    for axis, swap in product(((0.0, 1.0, 0.0), (1.0, 0.0, 0.0), (0.6, 0.8, 0.0)), (False, True)):
++        with test.subTest(axis=axis, swap=swap):
++            rotation = wp.quat_from_axis_angle(wp.vec3(axis), tilt)
++            lowest = min(float(wp.quat_rotate(rotation, wp.vec3(vertex))[2]) for vertex in vertices)
++            pose = wp.transform(wp.vec3(-0.02, 0.03, half[2] - depth - lowest), rotation)
++            pa, pb, normals = _contacts(
++                test, device, half, vertices, cube.indices, pose, np.ones(3), swap=swap, triangle=True
++            )
++            depths = np.sum((pa - pb) * normals, axis=1)
++            test.assertAlmostEqual(float(np.max(depths)), depth, delta=1.0e-5)
++            # Every contact pushes the mesh up out of the top face, within the tilt.
++            test.assertGreater(float(np.min(normals[:, 2])), np.cos(2.0 * tilt))
++            np.testing.assert_allclose(pa[:, 2], half[2], atol=1.0e-5)
++
++
+ def test_refinement_triangle_above_wide_ground(test, device):
+     """Report the true gap for a small triangle hovering above a wide ground.
+ 
+@@ -544,6 +572,7 @@ for function in (
+     test_refinement_unconverged_query_separation,
+     test_refinement_triangle_box_depth,
+     test_refinement_triangle_box_seam,
++    test_refinement_triangle_box_tilted_rest,
+     test_refinement_triangle_above_wide_ground,
+     test_refinement_resting_box_stack,
+     test_refinement_box_hull_depth,

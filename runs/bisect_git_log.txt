@@ -1,0 +1,12 @@
+# bad: [45b85aef656ebfd2ec1450683887c532585b6c16] Bound history-less Steel patch anchor seeds by their patch cone (#5001)
+# good: [abd14166c907df394dadb5cfa707639daa886d73] Report SolverSteel BODY_PARENT_F from the solved step (#5003)
+git bisect start '45b85aef' 'abd14166'
+# bad: [28d8d473c05f47891d29b5bba6eb65e3c2fe8028] Deprecate rod start frames and clean up VBD options (#4978)
+git bisect bad 28d8d473c05f47891d29b5bba6eb65e3c2fe8028
+# good: [2e20d82d706970a9bb6917eef7f63e0831cb0347] Add configurable inertia validation controls (#4971)
+git bisect good 2e20d82d706970a9bb6917eef7f63e0831cb0347
+# good: [3ba2f21c183f854167169c0bf11acecb7111016d] Reject non-finite contact materials at finalization (#4905)
+git bisect good 3ba2f21c183f854167169c0bf11acecb7111016d
+# bad: [536a3dd77060a3d12e22e78892f25b0146ee24ce] Fix downward triangle-box ground-contact normals (#4974)
+git bisect bad 536a3dd77060a3d12e22e78892f25b0146ee24ce
+# first bad commit: [536a3dd77060a3d12e22e78892f25b0146ee24ce] Fix downward triangle-box ground-contact normals (#4974)

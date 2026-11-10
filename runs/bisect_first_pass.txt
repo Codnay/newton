@@ -1,0 +1,6 @@
+f622e9df7 0.388671875 Support mesh surface velocity in SolverSteel (#5109)
+ce91cdf62 0.373046875 Support friction_mode other than fixed_normal on colored Steel propagation (#5002)
+b857d1c78 0.00390625 Compile the row phase into SolverSteel's matrix-free GS kernel (#5004)
+87c182e83 0.001953125 Restart the sleeping history of worlds selected by a masked SolverSteel.reset() (#4951)
+45b85aef6 0.375 Bound history-less Steel patch anchor seeds by their patch cone (#5001)
+abd14166c 0.005859375 Report SolverSteel BODY_PARENT_F from the solved step (#5003)
